@@ -13,13 +13,13 @@
   			<configuration>
   				<archive>
   					<manifest>
-  						<mainClass>com.abhinavsingh.crawler.WebCrawler</mainClass>
+  						<mainClass>com.abhinavsingh.crawler.Crawler</mainClass>
   					</manifest>
   				</archive>
   				<descriptorRefs>
   					<descriptorRef>jar-with-dependencies</descriptorRef>
   				</descriptorRefs>
-  				<finalName>WebCrawler</finalName>
+  				<finalName>Crawler</finalName>
   			</configuration>
   		</plugin>
   	</plugins>

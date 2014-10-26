@@ -7,11 +7,20 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.abhinavsingh.fuge.ConsumerCallback;
+import com.abhinavsingh.fuge.Fuge;
+import com.abhinavsingh.fuge.ProducerAggregatorCallback;
+import com.abhinavsingh.fuge.ProducerDispatcherCallback;
+
 //Define result object that our consumers will produce
 class Crawler {
+	
+	// used by producer dispatcher and aggregator threads
+	final static ConcurrentLinkedQueue<String> inputQueue = new ConcurrentLinkedQueue<String>();
 	
 	final private String job;
 	private int statusCode;
@@ -63,6 +72,65 @@ class Crawler {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+	}
+	
+	public static void main(String[] args) throws InterruptedException {
+		// Producer callback to process incoming result objects from Consumers
+		ProducerAggregatorCallback<Crawler> pacb = new ProducerAggregatorCallback<Crawler>() {
+			
+			@Override 
+			public void handleResult(Crawler result) {
+				List<String> links = result.getLinks();
+				for (String link : links) {
+					link = link.trim().replace("\"", "");
+					// If link is not already visited
+					if (link.startsWith("http")) {
+						//System.out.format("[%s] Received link %s%n", Thread.currentThread().getName(), link);
+						inputQueue.add(link);
+					}
+				}
+			}
+		
+		};
+		
+		ProducerDispatcherCallback<String> pdcb = new ProducerDispatcherCallback<String>() {
+
+			@Override
+			public int dispatchJob(ConcurrentLinkedQueue<String> jobQueue) {
+				String job = inputQueue.poll();
+				if (job != null) {
+					jobQueue.add(job);
+					return 1;
+				}
+				return 0;
+			}
+			
+		};
+		
+		// Consumer callback to process incoming job from the Producer
+		ConsumerCallback<String, Crawler> ccb = new ConsumerCallback<String, Crawler>() {
+
+			@Override
+			public Crawler handleJob(String url) {
+				Crawler crawler = new Crawler(url);
+				crawler.run();
+				return crawler;
+			}
+			
+		};
+		
+		// Start producer / consumer manager
+		Fuge<String, Crawler> fuge = new Fuge<String, Crawler>(10, pdcb, pacb, ccb);
+		fuge.start();
+		
+		// After brief sleep, seed initial job to Producer
+		Thread.sleep(1000);
+		inputQueue.add(args[0]);
+		
+		// Munch while work gets done
+		while (true) {
+			Thread.sleep(1000);
 		}
 	}
 	

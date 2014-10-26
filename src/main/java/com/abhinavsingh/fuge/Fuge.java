@@ -1,7 +1,5 @@
 package com.abhinavsingh.fuge;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Fuge<T1, T2> {
@@ -12,28 +10,39 @@ public class Fuge<T1, T2> {
 	
 	// internals
 	final private int numConsumers;
-	final private List<Thread> consumers = new ArrayList<Thread>();
-	private Producer<T1, T2> producer;
+	final private ConsumerPool<T1, T2> pool;
+	final private ProducerDispatcher<T1> dispatcher;
+	final private ProducerAggregator<T2> aggregator;
 	
-	public Fuge() {
-		this.numConsumers = 10;
-	}
-	
-	public Fuge(int numConsumers) {
+	public Fuge(int numConsumers, ProducerDispatcherCallback<T1> pdcb, 
+			ProducerAggregatorCallback<T2> pacb, ConsumerCallback<T1, T2> ccb) {
 		this.numConsumers = numConsumers;
+		this.dispatcher = new ProducerDispatcher<T1>(jobQueue, pdcb);
+		this.aggregator = new ProducerAggregator<T2>(resultQueue, pacb);
+		this.pool = new ConsumerPool<T1, T2>(numConsumers, jobQueue, resultQueue, ccb, dispatcher, aggregator);
 	}
 	
-	public void start(ProducerDispatcherCallback<T1> pdcb, ProducerAggregatorCallback<T2> pacb, ConsumerCallback<T1, T2> ccb) {
-		// setup consumers
-		for (int i = 0; i < numConsumers; i++) {
-			Thread consumer = new Thread(new Consumer<T1, T2>(ccb, jobQueue, resultQueue), 
-					"Consumer#"+Integer.toString(i+1));
-			consumer.start();
-			consumers.add(consumer);
-		}
+	public ProducerDispatcher<T1> getDispatcher() {
+		return dispatcher;
+	}
+	
+	public ProducerAggregator<T2> getAggregator() {
+		return aggregator;
+	}
+	
+	public void start() {
+		// start consumer pool
+		new Thread(pool, "ConsumerPool").start();
 		
-		producer = new Producer<T1, T2>(pdcb, pacb, jobQueue, resultQueue);
-		producer.run();
+		// start result aggregator
+		new Thread(aggregator, "Aggregator").start();
+		
+		// start job dispatcher
+		new Thread(dispatcher, "Dispatcher").start();
+	}
+
+	public int getNumConsumers() {
+		return numConsumers;
 	}
 	
 }
