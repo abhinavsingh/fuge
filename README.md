@@ -15,3 +15,13 @@ Crawler
 -------
 
 Crawler is a web crawler writtern on to of Fuge. Crawler setup Fuge and seeds an input url. Input job (url) is received by one of the consumer who result back a Crawler result object containing information about crawled URL. Links found on the job url are feeded back into the Fuge system as input. This goes on endlessly crawling possibly the entire web.
+
+Usage
+-----
+
+```
+git clone git@github.com:abhinavsingh/fuge.git
+cd fuge
+mvn clean compile assembly:single
+java -jar target/Crawler-jar-with-dependencies.jar http://abhinavsingh.com
+```
