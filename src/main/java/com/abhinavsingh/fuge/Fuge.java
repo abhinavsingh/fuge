@@ -9,17 +9,16 @@ public class Fuge<T1, T2> {
 	final private ConcurrentLinkedQueue<T2> resultQueue = new ConcurrentLinkedQueue<T2>();
 	
 	// internals
-	final private int numConsumers;
 	final private ConsumerPool<T1, T2> pool;
 	final private ProducerDispatcher<T1> dispatcher;
 	final private ProducerAggregator<T2> aggregator;
 	
-	public Fuge(int numConsumers, ProducerDispatcherCallback<T1> pdcb, 
-			ProducerAggregatorCallback<T2> pacb, ConsumerCallback<T1, T2> ccb) {
-		this.numConsumers = numConsumers;
+	public Fuge(ProducerDispatcherCallback<T1> pdcb, 
+			ProducerAggregatorCallback<T2> pacb, ConsumerCallback<T1, T2> ccb,
+			int jobProcessingRate) {
 		this.dispatcher = new ProducerDispatcher<T1>(jobQueue, pdcb);
 		this.aggregator = new ProducerAggregator<T2>(resultQueue, pacb);
-		this.pool = new ConsumerPool<T1, T2>(numConsumers, jobQueue, resultQueue, ccb, dispatcher, aggregator);
+		this.pool = new ConsumerPool<T1, T2>(jobQueue, resultQueue, ccb, jobProcessingRate, dispatcher, aggregator);
 	}
 	
 	public ProducerDispatcher<T1> getDispatcher() {
@@ -30,7 +29,7 @@ public class Fuge<T1, T2> {
 		return aggregator;
 	}
 	
-	public void start() {
+	public void run() {
 		// start consumer pool
 		new Thread(pool, "ConsumerPool").start();
 		
@@ -39,10 +38,6 @@ public class Fuge<T1, T2> {
 		
 		// start job dispatcher
 		new Thread(dispatcher, "Dispatcher").start();
-	}
-
-	public int getNumConsumers() {
-		return numConsumers;
 	}
 	
 }

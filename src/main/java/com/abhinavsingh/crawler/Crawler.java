@@ -6,7 +6,10 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,6 +24,7 @@ class Crawler {
 	
 	// used by producer dispatcher and aggregator threads
 	final static ConcurrentLinkedQueue<String> inputQueue = new ConcurrentLinkedQueue<String>();
+	final static ConcurrentHashMap<String, Crawler> visitedLinks = new ConcurrentHashMap<String, Crawler>();
 	
 	final private String job;
 	private int statusCode;
@@ -46,7 +50,7 @@ class Crawler {
 			URL url = new URL(job);
 			request = (HttpURLConnection) url.openConnection();
 			statusCode = request.getResponseCode();
-			System.out.format("[%s] Url %s Response code %d%n", Thread.currentThread().getName(), url.toString(), statusCode);
+			//System.out.format("[%s] Url %s Response code %d%n", Thread.currentThread().getName(), url.toString(), statusCode);
 			
 			// read html
 			String line;
@@ -71,58 +75,61 @@ class Crawler {
 				}
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			//e.printStackTrace();
 		}
 	}
 	
+	static ProducerDispatcherCallback<String> pdcb = new ProducerDispatcherCallback<String>() {
+
+		@Override
+		public int dispatchJob(ConcurrentLinkedQueue<String> jobQueue) {
+			String job = inputQueue.poll();
+			if (job != null) {
+				jobQueue.add(job);
+				return 1;
+			}
+			return 0;
+		}
+		
+	};
+	
+	// Consumer callback to process incoming job from the Producer
+	static ConsumerCallback<String, Crawler> ccb = new ConsumerCallback<String, Crawler>() {
+
+		@Override
+		public Crawler handleJob(String url) {
+			Crawler crawler = new Crawler(url);
+			crawler.run();
+			visitedLinks.put(url, crawler);
+			return crawler;
+		}
+		
+	};
+	
+	// Producer callback to process incoming result objects from Consumers
+	static ProducerAggregatorCallback<Crawler> pacb = new ProducerAggregatorCallback<Crawler>() {
+		
+		@Override 
+		public void handleResult(Crawler result) {
+			List<String> links = result.getLinks();
+			for (String link : links) {
+				link = link.trim().replace("\"", "");
+				
+				// If link is not already visited
+				if (!visitedLinks.containsKey(link) 
+						&& link.startsWith("http")) {
+					//System.out.format("[%s] Received link %s%n", Thread.currentThread().getName(), link);
+					inputQueue.add(link);
+				}
+			}
+		}
+	
+	};
+	
 	public static void main(String[] args) throws InterruptedException {
-		// Producer callback to process incoming result objects from Consumers
-		ProducerAggregatorCallback<Crawler> pacb = new ProducerAggregatorCallback<Crawler>() {
-			
-			@Override 
-			public void handleResult(Crawler result) {
-				List<String> links = result.getLinks();
-				for (String link : links) {
-					link = link.trim().replace("\"", "");
-					// If link is not already visited
-					if (link.startsWith("http")) {
-						//System.out.format("[%s] Received link %s%n", Thread.currentThread().getName(), link);
-						inputQueue.add(link);
-					}
-				}
-			}
-		
-		};
-		
-		ProducerDispatcherCallback<String> pdcb = new ProducerDispatcherCallback<String>() {
-
-			@Override
-			public int dispatchJob(ConcurrentLinkedQueue<String> jobQueue) {
-				String job = inputQueue.poll();
-				if (job != null) {
-					jobQueue.add(job);
-					return 1;
-				}
-				return 0;
-			}
-			
-		};
-		
-		// Consumer callback to process incoming job from the Producer
-		ConsumerCallback<String, Crawler> ccb = new ConsumerCallback<String, Crawler>() {
-
-			@Override
-			public Crawler handleJob(String url) {
-				Crawler crawler = new Crawler(url);
-				crawler.run();
-				return crawler;
-			}
-			
-		};
-		
 		// Start producer / consumer manager
-		Fuge<String, Crawler> fuge = new Fuge<String, Crawler>(10, pdcb, pacb, ccb);
-		fuge.start();
+		Fuge<String, Crawler> fuge = new Fuge<String, Crawler>(pdcb, pacb, ccb, 10);
+		fuge.run();
 		
 		// After brief sleep, seed initial job to Producer
 		Thread.sleep(1000);
@@ -131,6 +138,9 @@ class Crawler {
 		// Munch while work gets done
 		while (true) {
 			Thread.sleep(1000);
+			
+			// print visited links
+			System.out.format("[%s] Total visited links %d%n", Thread.currentThread().getName(), visitedLinks.size());
 		}
 	}
 	
