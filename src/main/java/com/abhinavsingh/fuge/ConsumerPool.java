@@ -54,7 +54,8 @@ public class ConsumerPool<T1, T2> implements Runnable {
 	
 	@Override
 	public void run() {
-		startConsumers(jobProcessingRate / 10);
+		startConsumers(jobProcessingRate);
+		//startConsumers(jobProcessingRate / 10);
 		
 		while (true) {
 			// auto-scale consumer pool to meet jobProcessingRate
@@ -65,9 +66,10 @@ public class ConsumerPool<T1, T2> implements Runnable {
 				int totalDispatched = dispatcher.getTotalDispatched();
 				int totalAggregated = aggregator.getTotalAggregated();
 				pendingJobs = totalDispatched - totalAggregated;
+				System.out.format("[%s] dispatched %d, aggregated %d, pending %d%n", Thread.currentThread().getName(), totalDispatched, totalAggregated, pendingJobs);
 				
 				// job arrival and processing rate
-				long timeDiff = (System.currentTimeMillis() - startTime ) / 1000;
+				/*long timeDiff = (System.currentTimeMillis() - startTime ) / 1000;
 				processingPerSecond = (float) totalAggregated / timeDiff;
 				jobsPerSecond = (float) totalDispatched / timeDiff;
 				pendingGrowthRate = (float) pendingJobs / timeDiff;
@@ -94,7 +96,7 @@ public class ConsumerPool<T1, T2> implements Runnable {
 				else if (dispatcher.isPaused()
 						&& true) {
 					dispatcher.resume();
-				}
+				}*/
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
