@@ -1,7 +1,7 @@
 Fuge
 ====
 
-Fuge is a weekend project written while trying to dig deep into Java threads, synchronization and communication.
+Fuge is a weekend project written while trying to dig deep into Java threads, synchronization and communication using ConcurrentLinkedQueue.
 
 Fuges creates 1 job dispatcher thread, 1 job result aggregator, multiple job consumer threads. Fuge use 2 thread-safe queues `jobQueue` and `resultQueue` for sending job and their results back and forth. Here is how it all gets connected:
 
