@@ -6,18 +6,14 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.abhinavsingh.fuge.ConsumerCallback;
+import com.abhinavsingh.fuge.Callback;
 import com.abhinavsingh.fuge.Fuge;
-import com.abhinavsingh.fuge.ProducerAggregatorCallback;
-import com.abhinavsingh.fuge.ProducerDispatcherCallback;
 
 //Define result object that our consumers will produce
 class Crawler {
@@ -79,23 +75,18 @@ class Crawler {
 		}
 	}
 	
-	static ProducerDispatcherCallback<String> pdcb = new ProducerDispatcherCallback<String>() {
+	// Consumer callback to process incoming job from the Producer
+	static Callback<String, Crawler> callback = new Callback<String, Crawler>() {
 
 		@Override
-		public int dispatchJob(ConcurrentLinkedQueue<String> jobQueue) {
+		public String dispatchJob() {
 			String job = inputQueue.poll();
 			if (job != null) {
-				jobQueue.add(job);
-				return 1;
+				return job;
 			}
-			return 0;
+			return null;
 		}
 		
-	};
-	
-	// Consumer callback to process incoming job from the Producer
-	static ConsumerCallback<String, Crawler> ccb = new ConsumerCallback<String, Crawler>() {
-
 		@Override
 		public Crawler handleJob(String url) {
 			Crawler crawler = new Crawler(url);
@@ -103,11 +94,6 @@ class Crawler {
 			visitedLinks.put(url, crawler);
 			return crawler;
 		}
-		
-	};
-	
-	// Producer callback to process incoming result objects from Consumers
-	static ProducerAggregatorCallback<Crawler> pacb = new ProducerAggregatorCallback<Crawler>() {
 		
 		@Override 
 		public void handleResult(Crawler result) {
@@ -123,12 +109,12 @@ class Crawler {
 				}
 			}
 		}
-	
+		
 	};
 	
 	public static void main(String[] args) throws InterruptedException {
 		// Start producer / consumer manager
-		Fuge<String, Crawler> fuge = new Fuge<String, Crawler>(pdcb, pacb, ccb, 10);
+		Fuge<String, Crawler> fuge = new Fuge<String, Crawler>(callback, 10);
 		fuge.run();
 		
 		// After brief sleep, seed initial job to Producer

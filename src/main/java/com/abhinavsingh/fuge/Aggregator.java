@@ -2,13 +2,13 @@ package com.abhinavsingh.fuge;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class ProducerAggregator<T2> implements Runnable {
+public class Aggregator<T1, T2> implements Runnable {
 	
 	final private ConcurrentLinkedQueue<T2> resultQueue;
-	final private ProducerAggregatorCallback<T2> cb;
+	final private Callback<T1, T2> cb;
 	volatile private int totalAggregated;
 	
-	public ProducerAggregator(ConcurrentLinkedQueue<T2> resultQueue, ProducerAggregatorCallback<T2> cb) {
+	public Aggregator(ConcurrentLinkedQueue<T2> resultQueue, Callback<T1, T2> cb) {
 		this.resultQueue = resultQueue;
 		this.cb = cb;
 	}

@@ -4,11 +4,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 class Consumer<T1, T2> implements Runnable {
 	
-	final private ConsumerCallback<T1, T2> cb;
+	final private Callback<T1, T2> cb;
 	final private ConcurrentLinkedQueue<T1> jobQueue;
 	final private ConcurrentLinkedQueue<T2> resultQueue;
 
-	Consumer(ConsumerCallback<T1, T2> cb, 
+	Consumer(Callback<T1, T2> cb, 
 			ConcurrentLinkedQueue<T1> jobQueue, ConcurrentLinkedQueue<T2> resultQueue) {
 		this.cb = cb;
 		this.jobQueue = jobQueue;
