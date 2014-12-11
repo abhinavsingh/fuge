@@ -15,7 +15,11 @@ import java.util.regex.Pattern;
 import com.abhinavsingh.fuge.Callback;
 import com.abhinavsingh.fuge.Fuge;
 
-//Define result object that our consumers will produce
+/**
+ * 
+ * @author abhinavsingh
+ *
+ */
 class Crawler {
 	
 	// used by producer dispatcher and aggregator threads
